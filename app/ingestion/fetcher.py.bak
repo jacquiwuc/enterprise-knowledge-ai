@@ -1,0 +1,42 @@
+﻿
+from pathlib import Path
+
+import httpx
+
+from app.ingestion.parser import parse_html
+from app.ingestion.storage import save_if_new
+
+
+def fetch_html(url: str) -> str:
+    response = httpx.get(
+        url,
+        timeout=15.0,
+        follow_redirects=True,
+        headers={"User-Agent": "EnterpriseKnowledgeAI/0.1"},
+    )
+    response.raise_for_status()
+    return response.text
+
+
+def save_html(html: str, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(html, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    url = "https://example.com"
+
+    html = fetch_html(url)
+    save_html(html, Path("data/raw/example.html"))
+
+    document = parse_html(html, url)
+
+    output_path = Path("data/processed/documents.jsonl")
+if save_if_new(document, output_path):
+    print("Document saved successfully")
+else:
+    print("Duplicate document: skipped")
+
+    print(f"Title: {document.title}")
+    print(f"Source: {document.source_url}")
+    print(f"Content hash: {document.content_hash}")
